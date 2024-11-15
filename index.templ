@@ -1,0 +1,26 @@
+package main
+
+templ home(name string) {
+    <!DOCTYPE html>
+    <head>
+    <link rel="stylesheet" href="/styles.css" />
+        <script src="https://unpkg.com/htmx.org@2.0.3" integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq" crossorigin="anonymous"></script>
+        <body>
+            <h2>Hello, { name }...</h2>
+            <br>
+            <h1>Rock, Paper, or Scissors?</h1>
+            <div id="dummy"/>
+            <div class="row">
+                <div class="cell" hx-post="/action/rock" hx-target="#dummy" hx-trigger="click">
+                    <img src="/rock.svg" class="logo"/>
+                </div>
+                <div class="cell" hx-post="/action/paper" hx-target="#dummy" hx-trigger="click">
+                    <img src="/paper.svg" class="logo"/>
+                </div>
+                <div class="cell" hx-post="/action/scissors" hx-target="#dummy" hx-trigger="click">
+                    <img src="/scissors.svg" class="logo"/>
+                </div>
+            </div>
+        </body>
+    </head>
+}
