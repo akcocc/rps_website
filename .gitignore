@@ -2,3 +2,9 @@
 /rps_website
 /out
 /out.txt
+/root-ca.crt
+/root-ca.key
+/root-ca.srl
+/server.crt
+/server.csr
+/server.key

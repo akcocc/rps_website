@@ -7,7 +7,7 @@ templ home() {
         @htmx_script()
         @websocket_script()
         <body>
-            <div hx-ext="ws" ws-connect="/game_round">
+            <div hx-ext="ws" ws-connect="/connect">
                 <div id="current_screen">
                     @greeting_screen()
                 </div>
@@ -56,8 +56,18 @@ templ websocket_script() {
     <script src="https://unpkg.com/htmx-ext-ws@2.0.1/ws.js"/>
 }
 
-templ waiting_screen(name string) {
-    <h2>Hello, { name }...</h2>
-    <br>
-    <h1>Waiting for second player to join...</h1>
+templ waiting_for_room(name string) {
+    <div id="current_screen" hx-swap-oob="outerHTML">
+        <h2>Hello, { name }...</h2>
+        <br>
+        <h1>Looking for rooms...</h1>
+    </div>
+}
+
+templ waiting_for_player(name string) {
+    <div id="current_screen" hx-swap-oob="outerHTML">
+        <h2>Hello, { name }...</h2>
+        <br>
+        <h1>Waiting for second player...</h1>
+    </div>
 }
