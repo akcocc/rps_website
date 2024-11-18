@@ -1,0 +1,23 @@
+package hub
+
+templ play_screen(against string) {
+    <div id="current_screen" hx-swap-oob="outerHTML">
+        <h2>You're playing against { against }!</h2>
+        <br>
+        <h1>Rock, Paper, or Scissors?</h1>
+        <div class="row">
+            @action("/rock.svg", "1")
+            @action("/paper.svg", "2")
+            @action("/scissors.svg", "3")
+        </div>
+    </div>
+}
+
+templ action(image_path string, action_number string) {
+    <form>
+        <div class="cell" ws-send hx-trigger="click" >
+            <input type="hidden" name="action" value={ action_number }>
+            <img src={ image_path } class="logo"/>
+        </div>
+    </form>
+}

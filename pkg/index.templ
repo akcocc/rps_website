@@ -1,0 +1,49 @@
+package main
+
+// <br> for spacing is the only way, trust
+
+templ home() {
+    <!DOCTYPE html>
+    <head>
+    <link rel="stylesheet" href="/styles.css" />
+        @htmx_script()
+        @websocket_script()
+        <body>
+            <div hx-ext="ws" ws-connect="/connect">
+                <div id="current_screen">
+                    <h2>Establishing connection...</h2>
+                </div>
+            </div>
+        </body>
+    </head>
+}
+
+templ greeting_screen() {
+    <div id="current_screen" hx-swap-oob="outerHTML">
+        <h1>What's your name?</h1>
+        <br>
+        <form class="container" ws-send hx-sync="drop" hx-target="#current_screen">
+            <div class="row">
+                <input name="player_name" id="name_input" required minlength="1" placeholder="Enter your name here..."/>
+            </div>
+            <div class="row">
+                <button type="submit" hx-indicator="#spinner">Submit</button>
+                <img id="spinner" class="htmx-indicator" src="/spinner.svg" width="30" height="30"/>
+            </div>
+        </form>
+    </div>
+}
+
+
+templ htmx_script() {
+    <script
+        src="https://unpkg.com/htmx.org@2.0.3"
+        integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq"
+        crossorigin="anonymous"
+    />
+}
+
+templ websocket_script() {
+    <script src="https://unpkg.com/htmx-ext-ws@2.0.1/ws.js"/>
+}
+
