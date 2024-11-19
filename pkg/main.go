@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/md5"
 	"fmt"
 	"net/http"
 	"os"
 	"rps_website/pkg/assert"
 	"rps_website/pkg/hub"
-	"strings"
 
 	"github.com/gorilla/websocket"
 )
@@ -18,18 +18,24 @@ func load_svg_data(path string, resp_writer http.ResponseWriter) {
     img_data, err := os.ReadFile(path)
     assert.Expect(err, "failed to read image file")
 
+    digest := md5.Sum(img_data)
+
     resp_writer.Header().Add("Content-Type", "image/svg+xml")
+    resp_writer.Header().Add("Cache-Control", "public, max-age=31536000, immutable")
+    resp_writer.Header().Add("Etag", fmt.Sprintf("%x", digest))
     _, err = resp_writer.Write(img_data)
     assert.Expect(err, "failed to write image data into response writer")
-
-    // fmt.Printf("%d bytes written\n", n)
 }
 
 func load_jpg_data(path string, resp_writer http.ResponseWriter) {
     img_data, err := os.ReadFile(path)
     assert.Expect(err, "failed to read image file")
 
+    digest := md5.Sum(img_data)
+
     resp_writer.Header().Add("Content-Type", "image/jpg")
+    resp_writer.Header().Add("Cache-Control", "public, max-age=31536000, immutable")
+    resp_writer.Header().Add("Etag", fmt.Sprintf("%x", digest))
     _, err = resp_writer.Write(img_data)
     assert.Expect(err, "failed to write image data into response writer")
 }
@@ -59,13 +65,18 @@ func main() {
 
     http.HandleFunc("/", func(resp_writer http.ResponseWriter, req *http.Request) {
         resp_writer.Header().Add("Content-Type", "text/html")
+        resp_writer.Header().Add("Cache-Control", "public, max-age=31536000, immutable")
+        var buf hub.Buf
         if server_hub.Is_full() {
-            resp_writer.WriteHeader(418)
+            resp_writer.WriteHeader(503)
             resp_writer.Header().Add("Connection", "close")
-            unavailable().Render(req.Context(), resp_writer)
-            return
+            unavailable().Render(req.Context(), &buf)
+        } else {
+            home().Render(req.Context(), &buf)
         }
-        home().Render(req.Context(), resp_writer)
+        digest := md5.Sum(buf)
+        resp_writer.Header().Add("Etag", fmt.Sprintf("%x", digest))
+        resp_writer.Write(buf)
     })
     http.HandleFunc("/back_to_hub", func(resp_writer http.ResponseWriter, req *http.Request) {
         resp_writer.Header().Add("Content-Type", "text/html")
@@ -76,7 +87,11 @@ func main() {
         styles_data, err := os.ReadFile("styles.css")
         assert.Expect(err, "failed to read styles file")
 
+        digest := md5.Sum(styles_data)
+
         resp_writer.Header().Add("Content-Type", "text/css")
+        resp_writer.Header().Add("Cache-Control", "public, max-age=31536000, immutable")
+        resp_writer.Header().Add("Etag", fmt.Sprintf("%x", digest))
         _, err = resp_writer.Write(styles_data)
         assert.Expect(err, "failed to write styles data into response writer")
 
@@ -88,21 +103,10 @@ func main() {
         load_svg_data("rock-svgrepo-com.svg", resp_writer)
     })
 
-    http.HandleFunc("/418.jpg", func(resp_writer http.ResponseWriter, req *http.Request) {
+    http.HandleFunc("/503.jpg", func(resp_writer http.ResponseWriter, req *http.Request) {
         assert.Assert(req != nil, "request should not be nil")
         resp_writer.Header().Add("Connection", "close")
-        load_jpg_data("418.jpg", resp_writer)
-    })
-
-    http.HandleFunc("/spinner.svg", func(resp_writer http.ResponseWriter, req *http.Request) {
-        assert.Assert(req != nil, "request should not be nil")
-        load_svg_data("833.svg", resp_writer)
-    })
-
-    http.HandleFunc("/action/", func(resp_writer http.ResponseWriter, req *http.Request) {
-        assert.Assert(req != nil, "request should not be nil")
-        parts := strings.Split(req.RequestURI, "action/")
-        fmt.Println(parts[1])
+        load_jpg_data("503.jpg", resp_writer)
     })
 
     http.HandleFunc("/paper.svg", func(resp_writer http.ResponseWriter, req *http.Request) {
@@ -120,7 +124,7 @@ func main() {
         load_svg_data("scissors-svgrepo-com.svg", resp_writer)
     })
 
-    fmt.Println("Listening on port 4443")
-    err := http.ListenAndServeTLS(":4443", "toopsi.dev.pem", "toopsi.dev.key", nil)
+    fmt.Println("Listening on port 443")
+    err := http.ListenAndServeTLS(":443", "toopsi.dev.pem", "toopsi.dev.key", nil)
     assert.Expect(err, "could not start server")
 }
