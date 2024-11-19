@@ -10,18 +10,22 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const MAX_CONNECTIONS = 100
+const ROOM_COUNT = 50
+
 type Hub struct {
     connections map[*Client]bool
-    rooms [3]*Room
+    rooms [ROOM_COUNT]*Room
     register chan *Client
     unregister chan *Client
-    connection_count uint
+    total_connection_count int
+    current_connection_count int
 }
 
 type Client struct {
     connection *websocket.Conn
     player_name string
-    id uint
+    id int
     message_channel chan []byte
     room_number int
     in_match bool
@@ -31,7 +35,7 @@ type Client struct {
 func New_hub() Hub {
     hub := Hub{
     	connections: make(map[*Client]bool),
-    	rooms:       [3]*Room{},
+    	rooms:       [ROOM_COUNT]*Room{},
     	register:    make(chan *Client),
     	unregister:  make(chan *Client),
     }
@@ -43,6 +47,10 @@ func (hub *Hub) make_rooms() {
     for i := range hub.rooms {
         hub.rooms[i] = new_room()
     }
+}
+
+func (hub *Hub) Is_full() bool {
+    return hub.current_connection_count >= MAX_CONNECTIONS
 }
 
 func new_room() *Room {
@@ -69,6 +77,9 @@ func (hub *Hub) Run() {
                     println("ERROR: Couldn't unregister client, client pointer was nil")
                 }
                 delete(hub.connections, client)
+                if hub.current_connection_count > 0 {
+                    hub.current_connection_count--
+                }
         }
     }
 }
@@ -138,6 +149,13 @@ func (client *Client) send_wait_room_screen() {
     waiting_room_screen(client.player_name).Render(context.Background(), writer)
 }
 
+func (client *Client) send_action_confirm_screen(action string, other_player string) {
+    writer, err := client.connection.NextWriter(websocket.TextMessage)
+    defer writer.Close()
+    assert.Expect(err, "could not get writer for next message")
+    action_chosen(action, other_player).Render(context.Background(), writer)
+}
+
 func (client *Client) send_player_left_screen(departed_player string) {
     writer, err := client.connection.NextWriter(websocket.TextMessage)
     defer writer.Close()
@@ -172,19 +190,13 @@ func (client *Client) wait_for_available_room() {
     fmt.Printf("Player placed in Room #%d, Spot #%d\n", room_number + 1, player_spot + 1)
 }
 
-type Action int
-const (
-    ROCK = iota + 1
-    PAPER
-    SCISSORS
-)
-
 func Handle_client(connection *websocket.Conn, hub *Hub) {
     client := new_client(connection, hub)
     client.hub.register <- &client
 
-    hub.connection_count++
-    client.id = hub.connection_count
+    hub.total_connection_count++
+    hub.current_connection_count++
+    client.id = hub.total_connection_count
 
     err := client.get_player_name()
     if err != nil {

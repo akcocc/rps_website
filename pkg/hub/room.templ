@@ -21,3 +21,20 @@ templ action(image_path string, action_number string) {
         </div>
     </form>
 }
+
+templ action_chosen(action string, other_player string) {
+    <div id="current_screen" hx-swap-oob="outerHTML">
+        <h1>You chose { action }</h1>
+        <div id="other_player_move">
+            <h2>Waiting for { other_player }'s move...</h2>
+        </div>
+    </div>
+}
+
+templ other_action_chose(action string, other_player string, win_or_lose string) {
+    <div id="other_player_move" hx-swap-oob="outerHTML">
+        <h2>{ other_player } chose { action }</h2>
+        <br>
+        <h1>You { win_or_lose }!</h1>
+    </div>
+}

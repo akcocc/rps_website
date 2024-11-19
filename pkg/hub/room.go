@@ -7,6 +7,8 @@ import (
 	"strconv"
 )
 
+// Look, I don't know what happened here either, and I'm not touching it ever again...
+
 type Room struct {
     players [2]*Client
 }
@@ -16,6 +18,13 @@ func (buf *Buf) Write(p []byte) (n int, err error) {
     *buf = p
     return len(p), nil
 }
+
+type Action int
+const (
+    ROCK = iota + 1
+    PAPER
+    SCISSORS
+)
 
 func (room *Room) mediate() {
     println("mediating")
@@ -50,26 +59,135 @@ func (room *Room) mediate() {
     <-player_2.message_channel
 
     p1_action, p2_action := 0, 0
+    p1_action_str, p2_action_str := "", ""
 
     for p1_action == 0 || p2_action == 0 {
         select {
         case client_message := <-player_1.message_channel:
-            if string(client_message) == "left" {
-                println("player_1 leaving")
-                player_2.send_player_left_screen(player_1.player_name)
-                room.players[0] = nil
-                player_2.in_match = false
-                break
+            action, action_str, err := room.handle_player_action_input(
+                client_message,
+                player_1,
+                player_2,
+                )
+            if err != nil {
+                switch err.Error() {
+                case "continue": continue
+                case "break": break
+                default: assert.Expect(err, "failed to get user input")
+                }
             }
-            p1_action, err := strconv.Atoi(string(client_message))
-            assert.Expect(err, "could not parse message data as json")
-            fmt.Printf("action: %d\n", p1_action)
+            p1_action = action
+            p1_action_str = action_str
 
-        case _ = <-player_2.message_channel:
-            println("player_2 leaving")
-            player_1.send_player_left_screen(player_2.player_name)
-            player_1.in_match = false
-            room.players[1] = nil
+        case client_message := <-player_2.message_channel:
+            action, action_str, err := room.handle_player_action_input(
+                client_message,
+                player_2,
+                player_1,
+                )
+            if err != nil {
+                switch err.Error() {
+                case "continue": continue
+                case "break": break
+                default: assert.Expect(err, "failed to get user input")
+                }
+            }
+            p2_action = action
+            p2_action_str = action_str
         }
+    }
+
+    var result int = 0
+
+    if p1_action != p2_action {
+        result = result_map[p1_action][p2_action]
+    }
+
+    assert.Assert(result == 0 || result == 1 || result == 2, fmt.Sprintf("unexpected game result: %d", result))
+
+    switch result {
+    case 0: send_result_screen(player_1, player_2, p1_action_str, p2_action_str, true)
+    case 1: send_result_screen(player_1, player_2, p1_action_str, p2_action_str, false)
+    case 2: send_result_screen(player_2, player_1, p2_action_str, p1_action_str, false)
+    }
+    room.players[0] = nil
+    room.players[1] = nil
+}
+
+var result_map = map[int]map[int]int{
+    ROCK: {
+        SCISSORS: 1,
+        PAPER: 2,
+    },
+    PAPER: {
+        ROCK: 1,
+        SCISSORS: 2,
+    },
+    SCISSORS: {
+        PAPER: 1,
+        ROCK: 2,
+    },
+}
+
+func send_result_screen(
+    main_player, other_player *Client,
+    main_player_action, other_player_action string,
+    tie bool,
+) {
+        var main_position, other_position string
+        if tie {
+            main_position = "tied"
+            other_position = "tied"
+        } else {
+            main_position = "tied"
+            other_position = "tied"
+        }
+        var result_screen1 Buf
+        other_action_chose(other_player_action, other_player.player_name, main_position).Render(context.Background(), &result_screen1)
+        main_player.message_channel <- result_screen1
+
+        <-main_player.message_channel
+
+        var result_screen2 Buf
+        other_action_chose(main_player_action, main_player.player_name, other_position).Render(context.Background(), &result_screen2)
+        other_player.message_channel <- result_screen2
+
+        <-other_player.message_channel
+}
+
+func (room *Room) handle_player_action_input(client_message []byte, main_player, other_player *Client) (int, string, error) {
+    if string(client_message) == "left" {
+        println("player_1 leaving")
+        other_player.send_player_left_screen(main_player.player_name)
+        room.players[0] = nil
+        other_player.in_match = false
+
+        // this error break/continue thing is probably not the best way of
+        // doing this...
+        return -1, "", fmt.Errorf("break")
+    }
+
+    // annoying that i have to do it this way...
+    println("Raw: ", string(client_message))
+    player_input, err := strconv.Atoi(string(client_message))
+    assert.Expect(err, "could not cast to integer")
+
+    action, err := convert_and_verify_action(player_input)
+    if err != nil {
+        // just let them retry idk
+        return -1, "", fmt.Errorf("continue")
+    }
+
+    main_player.send_action_confirm_screen(action, other_player.player_name)
+
+    return player_input, action, nil
+}
+
+func convert_and_verify_action(action int) (string, error) {
+    switch action {
+    case ROCK: return "rock", nil
+    case PAPER: return "paper", nil
+    case SCISSORS: return "scissors", nil
+    default: return "", fmt.Errorf("%d is not a valid action", action)
     }
 }

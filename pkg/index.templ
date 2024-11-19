@@ -18,6 +18,17 @@ templ home() {
     </head>
 }
 
+templ unavailable() {
+    <!DOCTYPE html>
+    <head>
+    <link rel="stylesheet" href="/styles.css" />
+        <body>
+            <h2>Error code 418</h2>
+            <img src="/418.jpg">
+        </body>
+    </head>
+}
+
 templ greeting_screen() {
     <div id="current_screen" hx-swap-oob="outerHTML">
         <h1>What's your name?</h1>
