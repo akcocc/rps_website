@@ -67,6 +67,10 @@ func main() {
         }
         home().Render(req.Context(), resp_writer)
     })
+    http.HandleFunc("/back_to_hub", func(resp_writer http.ResponseWriter, req *http.Request) {
+        resp_writer.Header().Add("Content-Type", "text/html")
+        greeting_screen().Render(req.Context(), resp_writer)
+    })
     http.HandleFunc("/styles.css", func (resp_writer http.ResponseWriter, req *http.Request) {
         assert.Assert(req != nil, "request should not be nil")
         styles_data, err := os.ReadFile("styles.css")

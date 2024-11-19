@@ -15,10 +15,3 @@ templ waiting_for_player(name string) {
         <h1>Waiting for second player...</h1>
     </div>
 }
-
-templ player_left(departed_player string) {
-    <div id="current_screen" hx-swap-oob="outerHTML">
-        <h2>{ departed_player } left the game...</h2>
-        <h1>Would you like to start another game?</h1>
-    </div>
-}

@@ -26,7 +26,7 @@ const (
     SCISSORS
 )
 
-func (room *Room) mediate() {
+func (room *Room) mediate(room_num int) {
     println("mediating")
     player_1 := room.players[0]
     player_1.in_match = true
@@ -68,6 +68,8 @@ func (room *Room) mediate() {
                 client_message,
                 player_1,
                 player_2,
+                0,
+                room_num,
                 )
             if err != nil {
                 switch err.Error() {
@@ -84,6 +86,8 @@ func (room *Room) mediate() {
                 client_message,
                 player_2,
                 player_1,
+                1,
+                room_num,
                 )
             if err != nil {
                 switch err.Error() {
@@ -110,8 +114,19 @@ func (room *Room) mediate() {
     case 1: send_result_screen(player_1, player_2, p1_action_str, p2_action_str, false)
     case 2: send_result_screen(player_2, player_1, p2_action_str, p1_action_str, false)
     }
-    room.players[0] = nil
-    room.players[1] = nil
+    <-player_1.message_channel
+    <-player_2.message_channel
+    player_1.in_match = false
+    player_2.in_match = false
+
+    if room.players[0] != nil {
+        room.players[0] = nil
+        fmt.Printf("Removed player from Room #%d, Spot #1\n", room_num + 1)
+    }
+    if room.players[1] != nil {
+        room.players[1] = nil
+        fmt.Printf("Removed player from Room #%d, Spot #2\n", room_num + 1)
+    }
 }
 
 var result_map = map[int]map[int]int{
@@ -139,8 +154,8 @@ func send_result_screen(
             main_position = "tied"
             other_position = "tied"
         } else {
-            main_position = "tied"
-            other_position = "tied"
+            main_position = "won"
+            other_position = "lost"
         }
         var result_screen1 Buf
         other_action_chose(other_player_action, other_player.player_name, main_position).Render(context.Background(), &result_screen1)
@@ -155,12 +170,24 @@ func send_result_screen(
         <-other_player.message_channel
 }
 
-func (room *Room) handle_player_action_input(client_message []byte, main_player, other_player *Client) (int, string, error) {
+func (room *Room) handle_player_action_input(client_message []byte,
+    main_player, departed_player *Client,
+    player_num, room_num int,
+) (int, string, error) {
     if string(client_message) == "left" {
-        println("player_1 leaving")
-        other_player.send_player_left_screen(main_player.player_name)
-        room.players[0] = nil
-        other_player.in_match = false
+        // ?????
+        departed_player.send_player_left_screen(main_player.player_name)
+        room.players[player_num] = nil
+        departed_player.in_match = false
+
+        if player_num == 0 {
+            room.players[1] = nil
+            fmt.Printf("Removed player from Room #%d, Spot #2\n", room_num + 1)
+        } else {
+            room.players[0] = nil
+            fmt.Printf("Removed player from Room #%d, Spot #1\n", room_num + 1)
+        }
+        main_player.in_match = false
 
         // this error break/continue thing is probably not the best way of
         // doing this...
@@ -178,7 +205,7 @@ func (room *Room) handle_player_action_input(client_message []byte, main_player,
         return -1, "", fmt.Errorf("continue")
     }
 
-    main_player.send_action_confirm_screen(action, other_player.player_name)
+    main_player.send_action_confirm_screen(action, main_player.player_name)
 
     return player_input, action, nil
 }

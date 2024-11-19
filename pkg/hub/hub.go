@@ -71,7 +71,7 @@ func (hub *Hub) Run() {
                 }
             case client := <-hub.unregister:
                 println("unregistering client")
-                if client != nil{
+                if client != nil {
                     hub.search_and_remove_player(client)
                 } else {
                     println("ERROR: Couldn't unregister client, client pointer was nil")
@@ -94,10 +94,10 @@ func close_client_connection(client Client, err error) {
     // if client is in a room with another player
     if client.in_match {
         client.message_channel <- []byte("left")
-
         // cleanup
         client.in_match = false
     }
+    println("sent left message")
     client.hub.unregister <- &client
 }
 
@@ -158,9 +158,9 @@ func (client *Client) send_action_confirm_screen(action string, other_player str
 
 func (client *Client) send_player_left_screen(departed_player string) {
     writer, err := client.connection.NextWriter(websocket.TextMessage)
-    defer writer.Close()
     assert.Expect(err, "could not get writer for next message")
     player_left(departed_player).Render(context.Background(), writer)
+    writer.Close()
 }
 
 func (client *Client) send_wait_player_screen() {
@@ -210,7 +210,7 @@ func Handle_client(connection *websocket.Conn, hub *Hub) {
 
     room := client.hub.rooms[client.room_number]
     if room.players[0] != nil && room.players[1] != nil {
-        go room.mediate()
+        go room.mediate(client.room_number)
     }
 
     client.send_wait_player_screen()
@@ -243,6 +243,7 @@ func Handle_client(connection *websocket.Conn, hub *Hub) {
             case inc_message := <-client_message_chan:
                 message_type, message, err := inc_message.mt, inc_message.m, inc_message.e
                 if err != nil {
+                    println("PLAYER LEAVING")
                     close_client_connection(client, err)
                     break
                 }
