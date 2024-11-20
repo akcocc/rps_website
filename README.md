@@ -34,5 +34,10 @@ or
 
 To build and run at the same time run:
 ```
-go run ./pkg`
+go run ./pkg
 ```
+
+# Sources for images used
+https://icons8.com
+https://www.svgrepo.com
+https://http.cat
