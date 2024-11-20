@@ -171,14 +171,14 @@ func send_result_screen(
 }
 
 func (room *Room) handle_player_action_input(client_message []byte,
-    main_player, departed_player *Client,
+    main_player, other_player *Client,
     player_num, room_num int,
 ) (int, string, error) {
     if string(client_message) == "left" {
         // ?????
-        departed_player.send_player_left_screen(main_player.player_name)
+        other_player.send_player_left_screen(main_player.player_name)
         room.players[player_num] = nil
-        departed_player.in_match = false
+        other_player.in_match = false
 
         if player_num == 0 {
             room.players[1] = nil
@@ -205,7 +205,7 @@ func (room *Room) handle_player_action_input(client_message []byte,
         return -1, "", fmt.Errorf("continue")
     }
 
-    main_player.send_action_confirm_screen(action, main_player.player_name)
+    main_player.send_action_confirm_screen(action, other_player.player_name)
 
     return player_input, action, nil
 }
