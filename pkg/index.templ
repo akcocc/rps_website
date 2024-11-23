@@ -24,7 +24,22 @@ templ unavailable() {
     <link rel="stylesheet" href="/styles.css" />
         <body>
             <h2>Error code 503: Service unavailable</h2>
-            <img src="/503.jpg">
+            <div class="row">
+                <img src="/503.jpg">
+            </div>
+        </body>
+    </head>
+}
+
+templ not_found() {
+    <!DOCTYPE html>
+    <head>
+    <link rel="stylesheet" href="/styles.css" />
+        <body>
+            <h2>Error code 404: Not found</h2>
+            <div class="row">
+                <img src="/404.jpg">
+            </div>
         </body>
     </head>
 }
