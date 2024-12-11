@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"rps_website/pkg/assert"
+	"os"
+	"rps_website/assert"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -64,13 +65,11 @@ func (hub *Hub) Run() {
 		select {
 		case client := <-hub.register:
 			if client != nil {
-				println("registering client")
 				hub.connections[client] = true
 			} else {
 				println("ERROR: Couldn't register client, client pointer was nil")
 			}
 		case client := <-hub.unregister:
-			println("unregistering client")
 			if client != nil {
 				hub.search_and_remove_player(client)
 			} else {
@@ -89,7 +88,6 @@ func close_client_connection(client Client, err error) {
 		println("Websocket Error: ", err.Error())
 	}
 	assert.Assert(client.id != 0, "client id shouldnt be 0")
-	println("Websocket connection closed for client id: ", client.id)
 
 	// if client is in a room with another player
 	if client.in_match {
@@ -97,7 +95,6 @@ func close_client_connection(client Client, err error) {
 		// cleanup
 		client.in_match = false
 	}
-	println("sent left message")
 	client.hub.unregister <- &client
 }
 
@@ -135,10 +132,19 @@ func (client *Client) get_player_name() error {
 	var data map[string]interface{}
 
 	err = json.Unmarshal(message, &data)
-	assert.Expect(err, "could not parse message data as json")
+	if err != nil {
+		println("ERROR: could not parse message data as json")
+		client.send_error_screen()
+		return err
+	}
 
 	assert.Assert(&client != nil, "client should not be nil")
-	client.player_name = data["player_name"].(string)
+	name_value, ok := data["player_name"].(string)
+	if !ok {
+		client.send_error_screen()
+		return fmt.Errorf("could not cast json value to string")
+	}
+	client.player_name = name_value
 	return nil
 }
 
@@ -173,11 +179,19 @@ func (client *Client) send_wait_player_screen() {
 	writer.Close()
 }
 
-func (client *Client) send_error_screen() {
+func (client *Client) send_error_screen() error {
 	writer, err := client.connection.NextWriter(websocket.TextMessage)
-	assert.Expect(err, "could not get writer for next message")
+	if err != nil {
+		fmt.Println("could not get writer for next message: ", err)
+		return err
+	}
 	error_screen().Render(context.Background(), writer)
-	writer.Close()
+	err = writer.Close()
+	if err != nil {
+		fmt.Println("could not close writer for current message: ", err)
+		return err
+	}
+	return nil
 }
 
 func (client *Client) wait_for_available_room() {
@@ -227,6 +241,7 @@ func Handle_client(connection *websocket.Conn, hub *Hub) {
 		m  []byte
 		e  error
 	})
+
 	client_message := func() {
 		message_type, message, err := client.connection.ReadMessage()
 		client_message_chan <- struct {
@@ -265,11 +280,15 @@ func Handle_client(connection *websocket.Conn, hub *Hub) {
 			}
 			message = handle_client_message(message, message_type)
 			if message != nil {
+				println(string(message))
 				err = json.Unmarshal(message, &data)
 				assert.Expect(err, "raw message should be able to parse to interface")
 
-				player_action_raw := data["action"].(string)
-				assert.Expect(err, "msg interface value should be able to parse to string")
+				player_action_raw, ok := data["action"].(string)
+				if !ok {
+					println("ERROR: msg interface value should be able to parse to string")
+					os.Exit(1)
+				}
 				client.message_channel <- []byte(player_action_raw)
 
 				// assert.Assert(1 <= player_action && player_action <= 3, "message should be between 1 and 3, inclusively")
@@ -308,12 +327,19 @@ func (hub *Hub) search_and_remove_player(player *Client) {
 }
 
 func (hub *Hub) search_for_room() (int, int) {
+	empty_room, empty_spot := -1, -1
 	for room_number, room := range hub.rooms {
-		for spot_number, player := range room.players {
-			if player == nil {
-				return room_number, spot_number
+		// search for rooms with playrs already in them that arent full
+		if room.players[0] != nil && room.players[1] == nil {
+			return room_number, 1
+			// hold onto first empty room incase theres no other rooms with players in them that arent full
+		} else if room.players[0] == nil && room.players[1] == nil {
+			if empty_room == -1 {
+				empty_room = room_number
+				empty_spot = 0
 			}
 		}
 	}
-	return -1, -1
+	// if no partially filled rooms are found, return the empty room
+	return empty_room, empty_spot
 }

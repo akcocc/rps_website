@@ -3,7 +3,7 @@ package hub
 import (
 	"context"
 	"fmt"
-	"rps_website/pkg/assert"
+	"rps_website/assert"
 	"strconv"
 )
 
@@ -22,7 +22,7 @@ func (buf *Buf) Write(p []byte) (n int, err error) {
 
 
 func (room *Room) mediate(room_num int) {
-	fmt.Printf("Mediating game in Room #%d", room_num + 1)
+	fmt.Printf("Mediating game in Room #%d\n", room_num + 1)
 	player_1 := room.players[0]
 	player_1.in_match = true
 	player_2 := room.players[1]
@@ -207,7 +207,7 @@ func send_result_screen(
 }
 
 func (room *Room) handle_player_leave(
-	remaning_player, departed_player *Client,
+	departed_player, remaning_player *Client,
 	client_message []byte,
 	player_num, room_num int,
 ) error {
